@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>[Chat] Server</title>
+
+    <style>
+        #button_close { visibility: hidden; }
+    </style>
+
+    <script type="text/javascript" src="../www/js/app_get.js"></script>
+    <script type="text/javascript" src="../www/js/app_io_on.js"></script>
+    <script type="text/javascript" src="../www/js/server.js"></script>
+</head>
+
+<body>
+
+    <button id="button_open" onclick="openServer();">Open the server</button>
+    <button id="button_close" onclick="closeServer();">Close the server</button>
+    <button id="button_reload" onclick="reloadAll();">Reload all</button>
+    <button id="button_msgAdmin" onclick="msgAdmin();">Message admin</button>
+
+    Clients :
+    <div id="clientsConnected">
+    </div>
+
+</body>
+</html>
