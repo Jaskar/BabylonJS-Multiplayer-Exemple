@@ -1,4 +1,8 @@
 var onKeyDown;
+var players = [];
+var myName = null;
+var mySocketId = null;
+
 var initialize = function() {
     var socket = io();
 
@@ -12,7 +16,7 @@ var initialize = function() {
     var scene = new BABYLON.Scene(engine);
 
     // Change the scene background color to green.
-    //scene.clearColor = new BABYLON.Color3(0.2, 0.05, 0.3);
+    scene.clearColor = new BABYLON.Color3(0, 0, 0);
 
     var camera = new BABYLON.FreeCamera(
         "myCamera",
@@ -28,6 +32,7 @@ var initialize = function() {
     );
     light.diffuseColor = new BABYLON.Color3(1,1,1);
     light.emissiveColor = new BABYLON.Color3(1,1,1);
+    light.intensity = 0.85;
 
     var ground = BABYLON.Mesh.CreateGround(
         "myGround_1",
@@ -38,64 +43,127 @@ var initialize = function() {
     );
     ground.visibility = true;
 
-    var boxes = [];
-    var box = BABYLON.Mesh.CreateBox(
-        "myBox_1",
-        1,
+    var refBox = BABYLON.Mesh.CreateBox(
+        "refBox",
+        0.45,
         scene
     );
-    box.position = new BABYLON.Vector3(0,0.75,0)
+    refBox.position = new BABYLON.Vector3(0,0.75,0)
+
+
+    var move = null;
+    // When a key is pressed, set the movement
+    var onKeyDown = function(evt) {
+        if (evt.keyCode == 37) {
+            move = 'left';
+        }
+        else if (evt.keyCode == 38) {
+            move = 'up';
+        }
+        else if (evt.keyCode == 39) {
+            move = 'right';
+        }
+        else if (evt.keyCode == 40) {
+            move = 'down';
+        }
+    };
+
+    // On key up, reset the movement
+    var onKeyUp = function(evt) {
+        move = null;
+    };
+
+    // Register events with the right Babylon function
+    BABYLON.Tools.RegisterTopRootEvents([{
+        name: "keydown",
+        handler: onKeyDown
+    }, {
+        name: "keyup",
+        handler: onKeyUp
+    }]);
 
     // Register a render loop to repeatedly render the scene
     engine.runRenderLoop(function () {
-        box.rotation.x += 0.02 * scene.getAnimationRatio();
-        box.rotation.y += 0.02 * scene.getAnimationRatio();
-        box.rotation.z += 0.01 * scene.getAnimationRatio();
+
+        if(move) {
+            if(move == 'left') {
+                players[mySocketId].position.x -= 0.1;
+            }
+            else if(move == 'right') {
+                players[mySocketId].position.x += 0.1;
+            }
+            else if(move == 'up') {
+                players[mySocketId].position.z += 0.1;
+            }
+            else if(move == 'down') {
+                players[mySocketId].position.z -= 0.1;
+            }
+        }
+
+        refBox.rotation.x += 0.02 * scene.getAnimationRatio();
+        refBox.rotation.y += 0.02 * scene.getAnimationRatio();
+        refBox.rotation.z += 0.01 * scene.getAnimationRatio();
 
         scene.render();
     });
 
-    socket.on('connect', function() {
-        //socket.emit('name', var);
-    });
-    socket.on('updatePositions', function(positions) {
+    var _this = this;
 
-        for(var i = 0; i < boxes.length; i++) {
-            boxes[i].dispose();
+    socket.emit('getSocketId', function(myId) {
+
+        players[myId] = BABYLON.Mesh.CreateBox(
+            "me_" + myId,
+            1,
+            scene
+        );
+        players[myId].position = new BABYLON.Vector3(0,0.51,0);
+
+        mySocketId = myId;
+
+
+        setInterval(function() {
+            var data = {};
+
+            data.posX = players[mySocketId].position.x;
+            data.posY = players[mySocketId].position.y;
+            data.posZ = players[mySocketId].position.z;
+
+            socket.emit('move', data);
+        }, 40);
+    });
+
+    socket.on('disconnect', function(socket) {
+        if(players[socket]) {
+            players[socket].destroy();
+            players[socket] = null;
         }
-        boxes = [];
-        for(var i = 0; i < positions.length; i++) {
-            boxes.push(BABYLON.Mesh.CreateBox(
-                "box" + i.toString(),
+    });
+
+    socket.on('move', function(args) {
+        var name = args.name;
+
+        console.log(players[name]);
+
+        if(players[name] != undefined) {
+            players[name].position.x = args.posX;
+            players[name].position.y = args.posY;
+            players[name].position.z = args.posZ;
+        }
+        else {
+            console.log('New player');
+
+            var newPlayer = (BABYLON.Mesh.CreateBox(
+                "player_" + name,
                 1,
                 scene
             ));
+            newPlayer.position.x = args.posX;
+            newPlayer.position.y = args.posY;
+            newPlayer.position.z = args.posZ;
 
-            boxes[boxes.length-1].position = new BABYLON.Vector3(
-                positions[i][0],
-                positions[i][1],
-                positions[i][2]
-            );
+            players[name] = newPlayer;
         }
     });
-
-    var moveLeft = function() {
-        socket.emit('move', 'left');
-    };
-    var moveRight = function() {
-        socket.emit('move', 'right');
-    };
-    var moveUp = function() {
-        socket.emit('move', 'up');
-    };
-    var moveDown = function() {
-        socket.emit('move', 'down');
-    };
-
-    document.getElementById('buttonLeft').onclick = moveLeft;
-    document.getElementById('buttonRight').onclick = moveRight;
-    document.getElementById('buttonUp').onclick = moveUp;
-    document.getElementById('buttonDown').onclick = moveDown;
 };
 
 document.addEventListener("DOMContentLoaded", function() {

@@ -26,12 +26,3 @@ var closeServer = function() {
     http.close();
     document.getElementById("button_open").style.visibility = "visible";
 };
-
-var reloadAll = function() {
-    io.emit('reload please');
-};
-
-var msgAdmin = function() {
-    var msg = prompt('Message admin : ');
-    io.emit('msg admin', msg);
-};
